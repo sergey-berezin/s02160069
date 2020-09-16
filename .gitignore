@@ -134,3 +134,6 @@ $RECYCLE.BIN/
 .DS_Store
 
 _NCrunch*
+
+# sample images directory
+01-threads/sample
