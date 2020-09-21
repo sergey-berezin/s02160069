@@ -15,18 +15,18 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 namespace _01_threads
 {
-    public abstract class WorkerInfo { public string ThreadName { get; set; } }
+    public abstract class WorkerResult { public string ThreadName { get; set; } }
 
-    public abstract class WorkerFinished : WorkerInfo { }
+    public abstract class WorkerFinished : WorkerResult { }
     public class WorkerSucceeded : WorkerFinished { }
     public class WorkerInterrupted : WorkerFinished { }
     public class AllWorkersFinished : WorkerFinished { }
 
-    public class RecognitionInfo : WorkerInfo
+    public class RecognitionResult : WorkerResult
     {
         public string FileName { get; private set; }
         public double[] Probs { get; private set; }
-        public RecognitionInfo(string threadName, string fileName, double[] probs)
+        public RecognitionResult(string threadName, string fileName, double[] probs)
         {
             if (probs.Length != 10)
                 throw new ArgumentException("probs length must be equal to 10");
@@ -42,14 +42,13 @@ namespace _01_threads
         private InferenceSession session;
 
         private ConcurrentQueue<string> filenames = new ConcurrentQueue<string>();
-        private ConcurrentQueue<WorkerInfo> results = new ConcurrentQueue<WorkerInfo>();
+        private ConcurrentQueue<WorkerResult> results = new ConcurrentQueue<WorkerResult>();
         private ManualResetEvent stopper = new ManualResetEvent(true);
         private AutoResetEvent outputMutex = new AutoResetEvent(false);
 
-        public delegate void Callback(WorkerInfo info);
-        private Callback callback;
+        private Action<WorkerResult> callback;
 
-        public DirectoryProcessor(string path, Callback callback)
+        public DirectoryProcessor(string path, Action<WorkerResult> callback)
         {
             session = new InferenceSession("mnist-8.onnx");
             Array.ForEach(Directory.GetFiles(path), p => filenames.Enqueue(p));
@@ -120,7 +119,7 @@ namespace _01_threads
                 using var res = session.Run(new List<NamedOnnxValue> { onnxValue });
                 var output = Softmax(res.First().AsEnumerable<float>());
 
-                results.Enqueue(new RecognitionInfo(threadName, path, output));
+                results.Enqueue(new RecognitionResult(threadName, path, output));
                 outputMutex.Set();
             }
         }
@@ -131,7 +130,7 @@ namespace _01_threads
             while (true)
             {
                 if (threadsEnded == Environment.ProcessorCount) { break; }
-                if (!results.TryDequeue(out WorkerInfo info))
+                if (!results.TryDequeue(out WorkerResult info))
                 {
                     outputMutex.WaitOne();
                     continue;
@@ -166,7 +165,7 @@ namespace _01_threads
 
     class Program
     {
-        static void Callback(WorkerInfo info)
+        static void Callback(WorkerResult info)
         {
             switch (info)
             {
@@ -179,7 +178,7 @@ namespace _01_threads
                 case AllWorkersFinished r:
                     Console.WriteLine($"All workers finished from {r.ThreadName}");
                     break;
-                case RecognitionInfo r:
+                case RecognitionResult r:
                     var table = r.Probs.Select((p, i) => ($"   {i}  ", $"{p,6:P1}"));
                     var rowOne = string.Join(' ', table.Select(t => t.Item1));
                     var rowTwo = string.Join(' ', table.Select(t => t.Item2));
