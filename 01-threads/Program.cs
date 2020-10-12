@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 
 using OnnxImageProcessor;
@@ -38,8 +39,12 @@ namespace _01_threads
         static void Main(string[] args)
         {
             var path = (args.Length == 0) ? "sample" : args[0];
-            Console.WriteLine("Press any key to stop worker threads");
-            using var p = new DirectoryProcessor(path, Callback);
+            var files = Directory.GetFiles(path);
+            Console.WriteLine("Directory scan done");
+            Console.WriteLine("Press any key to start model");
+            Console.WriteLine("Press any key again to stop worker threads");
+            Console.ReadKey(true);
+            using var p = new DirectoryProcessor(files, Callback);
             Console.ReadKey(true);
             p.Stop();
         }

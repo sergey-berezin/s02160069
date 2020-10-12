@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
@@ -47,10 +47,10 @@ namespace OnnxImageProcessor
 
         private Action<WorkerResult> callback;
 
-        public DirectoryProcessor(string path, Action<WorkerResult> callback)
+        public DirectoryProcessor(string[] files, Action<WorkerResult> callback)
         {
             session = new InferenceSession("mnist-8.onnx");
-            Array.ForEach(Directory.GetFiles(path), p => filenames.Enqueue(p));
+            Array.ForEach(files, p => filenames.Enqueue(p));
             this.callback = callback;
             var o = new Thread(OutputProc);
             o.Name = "Output thread";
